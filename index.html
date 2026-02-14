@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Nuestra Historia ♾️</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+#menu {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, #ff9a9e, #fad0c4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-shadow: 3px 3px 6px black;
+  z-index: 10;
+}
+
+#menu h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 15px 30px;
+  font-size: 18px;
+  margin: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: #ff4d6d;
+  color: white;
+}
+
+canvas {
+  display: none;
+}
+
+/* CONTROLES MÓVIL */
+#controles {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  z-index: 1000;
+}
+
+#controles button {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  border-radius: 10px;
+  background-color: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+  <h1>🌎 Nuestra Historia ♾️</h1>
+  <button onclick="playMusic()">🎵 Escuchar nuestra canción</button>
+  <button onclick="startGame()">🎮 Empezar Aventura</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<!-- Controles táctiles -->
+<div id="controles" style="display:none;">
+  <button id="btn-avanzar">➡️</button>
+  <button id="btn-saltar">⬆️</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// Ajustar tamaño para móviles
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// Imágenes
+let imgJacqui = new Image(); imgJacqui.src = "jacqui.png";
+let imgNovio = new Image(); imgNovio.src = "novio.png";
+let imgJuan = new Image(); imgJuan.src = "juan.png";
+let imgCiro = new Image(); imgCiro.src = "ciro.png";
+
+// Jugador
+let gravity = 0.6;
+let jumpForce = -15;
+let player = { x: 200, y: canvas.height - 150, velocityY: 0, jumping: false };
+let cameraX = 0;
+let keys = {};
+let gameStarted = false;
+let currentMessage = "";
+let sunset = false;
+let heartInterval = null;
+
+// Obstáculos
+let obstacles = [
+  { x: 700, text: "21/08/2021 💫 Nos conocimos" },
+  { x: 1700, text: "14/07/2022 💖 Novios" },
+  { x: 2700, text: "20/09/2024 🏠 Convivimos" },
+  { x: 3700, text: "14/02/2026 💖 Feliz San Valentín"},
+  { x: 4700, text: "La historia continua... ♾️ "}
+];
+
+// Plantas
+let plants = [];
+for (let i = 400; i < 5000; i += 300) {
+  let nearObstacle = obstacles.some(ob => Math.abs(ob.x - i) < 200);
+  if (!nearObstacle) plants.push({ x: i, flower: Math.random() > 0.6 });
+}
+
+// NPCs
+let npcs = [
+  { x: 3100, text: "🐾 Juan nos espera", img: imgJuan },
+  { x: 3300, text: "🐱 Ciro también", img: imgCiro }
+];
+
+// Controles teclado
+document.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  if (e.key === " " && !player.jumping) {
+    player.velocityY = jumpForce;
+    player.jumping = true;
+  }
+});
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// Controles táctiles
+const btnAvanzar = document.getElementById("btn-avanzar");
+const btnSaltar = document.getElementById("btn-saltar");
+
+btnAvanzar.addEventListener("touchstart", ()=>{ keys["ArrowRight"] = true; });
+btnAvanzar.addEventListener("touchend", ()=>{ keys["ArrowRight"] = false; });
+
+btnSaltar.addEventListener("touchstart", ()=>{
+  if(!player.jumping){
+    player.velocityY = jumpForce;
+    player.jumping = true;
+  }
+});
+
+// Funciones
+function playMusic() {
+  window.open("https://youtu.be/vlneT-a-KkQ", "_blank");
+}
+
+function startGame() {
+  document.getElementById("menu").style.display = "none";
+  canvas.style.display = "block";
+  document.getElementById("controles").style.display = "flex";
+  gameStarted = true;
+  requestAnimationFrame(update);
+}
+
+function startHeartRain() {
+  if (heartInterval) return;
+  heartInterval = setInterval(() => {
+    let heart = document.createElement("div");
+    heart.innerHTML = "💖";
+    heart.style.position = "fixed";
+    heart.style.left = Math.random() * window.innerWidth + "px";
+    heart.style.top = "-20px";
+    heart.style.fontSize = (20 + Math.random() * 20) + "px";
+    heart.style.pointerEvents = "none";
+    heart.style.animation = "fall 5s linear";
+    document.body.appendChild(heart);
+    setTimeout(() => heart.remove(), 5000);
+  }, 200);
+}
+
+// Update del juego
+function update() {
+  if(!gameStarted) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  let showingText = false;
+  let speed = 6;
+  if(keys["ArrowRight"]) player.x += speed;
+  if(keys["ArrowLeft"] && player.x>0) player.x -= speed;
+
+  cameraX = player.x - canvas.width/3;
+  if(cameraX<0) cameraX = 0;
+
+  // CIELO
+  if(!sunset){
+    ctx.fillStyle="#5c94fc";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else {
+    let gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+    gradient.addColorStop(0,"#ff9966");
+    gradient.addColorStop(0.5,"#ff5e62");
+    gradient.addColorStop(1,"#6a0572");
+    ctx.fillStyle=gradient;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.beginPath();
+    ctx.arc(canvas.width-200, canvas.height-120,60,0,Math.PI*2);
+    ctx.fillStyle="#ffcc66";
+    ctx.fill();
+  }
+
+  // NUBES
+  function drawCloud(x,y){
+    ctx.beginPath();
+    ctx.arc(x,y,25,0,Math.PI*2);
+    ctx.arc(x+25,y-10,30,0,Math.PI*2);
+    ctx.arc(x+55,y,25,0,Math.PI*2);
+    ctx.arc(x+30,y+10,25,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.fillStyle="white";
+  for(let i=0;i<8;i++){
+    let cloudX = (i*400)-(cameraX*0.3);
+    drawCloud(cloudX,150);
+  }
+
+  // PISO
+  ctx.fillStyle="#c68642";
+  for(let i=0;i<canvas.width/40+5;i++){
+    ctx.fillRect((i*40)-(cameraX%40), canvas.height-100,40,40);
+  }
+  ctx.fillStyle="#3cb043";
+  ctx.fillRect(0, canvas.height-100, canvas.width,20);
+
+  // 🌿 Plantas
+  plants.forEach(plant=>{
+    let plantX = plant.x - cameraX;
+    let baseY = canvas.height - 120;
+    ctx.fillStyle="#2e8b57"; ctx.fillRect(plantX+8, baseY-20,4,20);
+    ctx.fillStyle="#3cb043";
+    ctx.fillRect(plantX,baseY-20,8,8);
+    ctx.fillRect(plantX+12,baseY-20,8,8);
+    ctx.fillRect(plantX-4,baseY-10,8,8);
+    ctx.fillRect(plantX+16,baseY-10,8,8);
+    if(plant.flower){ ctx.fillStyle="#ff69b4"; ctx.fillRect(plantX+6,baseY-28,8,8);}
+  });
+
+  // Gravedad
+  player.velocityY+=gravity;
+  player.y+=player.velocityY;
+  if(player.y>=canvas.height-150){ player.y=canvas.height-150; player.jumping=false;}
+
+  let screenX = player.x - cameraX;
+
+  if(imgJacqui.complete) ctx.drawImage(imgJacqui, screenX-60, player.y-40, 80, 120);
+  if(imgNovio.complete) ctx.drawImage(imgNovio, screenX+20, player.y-40,80,120);
+
+  // Obstáculos
+  obstacles.forEach(ob=>{
+    let obstacleX = ob.x - cameraX;
+    let brickWidth=60, brickHeight=60, brickY=canvas.height-160;
+    let playerRight=player.x+40, playerLeft=player.x-40;
+    let obstacleLeft=ob.x, obstacleRight=ob.x+brickWidth;
+    let playerBottom=player.y+80, brickTop=canvas.height-160;
+    if(playerRight>obstacleLeft && playerLeft<obstacleRight && playerBottom>brickTop){
+      if(keys["ArrowRight"]) player.x=obstacleLeft-40;
+      if(keys["ArrowLeft"]) player.x=obstacleRight+40;
+    }
+    ctx.fillStyle="#b55239"; ctx.fillRect(obstacleX,brickY,brickWidth,brickHeight);
+    ctx.strokeStyle="#7a2f1d"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(obstacleX, brickY+brickHeight/2); ctx.lineTo(obstacleX+brickWidth, brickY+brickHeight/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(obstacleX+brickWidth/2, brickY); ctx.lineTo(obstacleX+brickWidth/2, brickY+brickHeight/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(obstacleX+brickWidth/4, brickY+brickHeight/2); ctx.lineTo(obstacleX+brickWidth/4, brickY+brickHeight); ctx.stroke();
+
+    let near = Math.abs(player.x - ob.x) < 400;
+    if(near && player.y<canvas.height-200){
+      currentMessage=ob.text; showingText=true;
+      if(ob.text.includes("14/02/2026")){ sunset=true; startHeartRain();}
+    }
+  });
+
+  // NPCs
+  npcs.forEach(npc=>{
+    let npcX=npc.x-cameraX;
+    if(npc.img.complete) ctx.drawImage(npc.img, npcX, canvas.height-170,90,100);
+    let near = Math.abs(player.x - npc.x)<120;
+    if(near){ currentMessage=npc.text; showingText=true; }
+  });
+
+  // Texto
+  if(currentMessage!==""){
+    ctx.fillStyle="rgba(0,0,0,0.6)";
+    ctx.fillRect(0,0,canvas.width,120);
+    ctx.fillStyle="white";
+    ctx.font="bold 42px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(currentMessage, canvas.width/2, 75);
+  }
+
+  requestAnimationFrame(update);
+}
+
+// Animación corazones
+const style = document.createElement("style");
+style.innerHTML = `
+@keyframes fall {
+  to { transform: translateY(100vh); opacity:0; }
+}`;
+document.head.appendChild(style);
+
+</script>
+</body>
+</html>
